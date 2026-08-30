@@ -1,0 +1,20 @@
+seed: 0
+device: cuda
+num_classes: 10
+subject_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+# 运行前把处理后的数据放在 data/db4/nct/ 下。
+data_root: data/db4
+results_root: results
+
+data:
+  exercise: 1
+  gesture_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  label_field: restimulus
+  repetition_field: rerepetition
+  target_frequency: 200
+  window_ms: 250
+  step_ms: 50
+  max_sequence_length: 256
+  threshold_method: percentile
+  threshold_percentile: 95.0
