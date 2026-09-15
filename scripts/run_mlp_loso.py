@@ -97,7 +97,7 @@ def main() -> None:
     with args.config.open("r", encoding="utf-8") as handle:
         config = yaml.safe_load(handle)
     seed_everything(int(config["seed"]))
-    root = Path(config["data_root"])
+    root = Path(config.get("legacy_data_root", "data/db4"))
     nct_dir = root / "nct"
     source = load_source_arrays(nct_dir, args.held_out)
     test = load_subject(nct_dir / f"subject_{args.held_out:03d}.npz", args.held_out)

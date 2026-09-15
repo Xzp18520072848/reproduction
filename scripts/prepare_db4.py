@@ -38,7 +38,7 @@ def main() -> None:
     args = parser.parse_args()
 
     config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
-    output_root = args.output_root or Path(config["data_root"])
+    output_root = args.output_root or Path(config.get("legacy_data_root", "data/db4"))
     common = config["data"]
     output_root.mkdir(parents=True, exist_ok=True)
 

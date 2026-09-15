@@ -36,17 +36,30 @@ class NCTDataset(Dataset):
         }
 
 
-def load_subject(path: Path, subject: int) -> dict[str, np.ndarray]:
+def load_subject(path: Path, subject: int | None = None) -> dict[str, np.ndarray]:
     with np.load(path, allow_pickle=False) as data:
         labels = np.asarray(data["labels"], dtype=np.int64)
+        stored_subject = int(data["subject"]) if "subject" in data else 0
+        subject_value = stored_subject if subject is None else int(subject)
         return {
             "windows": np.asarray(data["windows"], dtype=np.float32),
             "time_positions": np.asarray(data["time_positions"], dtype=np.float32),
             "attention_masks": np.asarray(data["attention_masks"], dtype=np.bool_),
             "labels": labels,
-            "subjects": np.full(len(labels), subject, dtype=np.int64),
+            "subjects": np.full(len(labels), subject_value, dtype=np.int64),
             "repetitions": np.asarray(data["repetitions"], dtype=np.int64),
         }
+
+
+def load_arrays_from_paths(paths: list[Path]) -> dict[str, np.ndarray]:
+    """Concatenate tokenized subjects from multiple datasets."""
+    if not paths:
+        raise ValueError("没有找到任何 NCT 文件。")
+    arrays = [load_subject(path) for path in paths]
+    return {
+        key: np.concatenate([item[key] for item in arrays], axis=0)
+        for key in arrays[0]
+    }
 
 
 def load_source_arrays(nct_dir: Path, held_out_subject: int) -> dict[str, np.ndarray]:

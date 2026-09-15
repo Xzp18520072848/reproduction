@@ -1,11 +1,22 @@
 seed: 0
 device: cuda
 num_classes: 10
-subject_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-# 运行前把处理后的数据放在 data/db4/nct/ 下。
-data_root: data/db4
+# 主实验：DB2、DB3 训练，DB4 测试。
+# 只取三个数据集都能对应的前 10 个手势（gesture 1-10）。
+data_root: data/db23_to_db4
+legacy_data_root: data/db4
 results_root: results
+
+raw_roots:
+  db2: /home/xuzhenpeng/work/aemg_ninapro/dataset/ninapro_db2_full
+  db3: /home/xuzhenpeng/work/aemg_ninapro/dataset/ninapro_db3_full
+  db4: /home/xuzhenpeng/work/aemg_ninapro/dataset/ninapro_db4
+
+subjects:
+  db2: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
+  db3: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+  db4: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
 data:
   exercise: 1
