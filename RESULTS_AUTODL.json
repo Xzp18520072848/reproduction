@@ -1,0 +1,23 @@
+{
+  "source": "AutoDL",
+  "protocol": "DB2+DB3-train-DB4-test",
+  "epochs": 100,
+  "train_samples": 2887,
+  "train_accuracy": 1.0,
+  "db4_test_samples": 593,
+  "db4_overall_accuracy": 0.09106239460370995,
+  "random_guess_reference": 0.1,
+  "db4_subjects": {
+    "subject_001": {"accuracy": 0.13333333333333333, "samples": 60},
+    "subject_002": {"accuracy": 0.11864406779661017, "samples": 59},
+    "subject_003": {"accuracy": 0.08333333333333333, "samples": 60},
+    "subject_004": {"accuracy": 0.07017543859649122, "samples": 57},
+    "subject_005": {"accuracy": 0.0, "samples": 60},
+    "subject_006": {"accuracy": 0.12280701754385964, "samples": 57},
+    "subject_007": {"accuracy": 0.13333333333333333, "samples": 60},
+    "subject_008": {"accuracy": 0.13333333333333333, "samples": 60},
+    "subject_009": {"accuracy": 0.016666666666666666, "samples": 60},
+    "subject_010": {"accuracy": 0.1, "samples": 60}
+  },
+  "note": "该结果来自 AutoDL 服务器运行输出；RESULTS.md 提供中文说明。"
+}
