@@ -46,7 +46,19 @@ results/ssl_db4_loso/summary.json
 - `mean_accuracy`：10 折测试准确率的平均值
 - `overall_accuracy`：10 折测试样本合并后的总体准确率
 
-当前还没有把新 SSL + LOSO 流程的最终 accuracy 写死在这里，避免把旧监督 MLP 的 9.11% 误认为新实验结果。以实际生成的 `summary.json` 为准。
+## 本次运行结果
+
+本地 WSL 使用 CUDA 完整跑完 100 epoch SSL 预训练和 10 折 DB4 LOSO：
+
+| 指标 | 结果 |
+|---|---:|
+| 10-fold mean accuracy | 7.80% |
+| overall accuracy | 7.76% |
+| DB4 测试样本数 | 593 |
+| SSL 最佳 epoch | 79 |
+| SSL 最佳 val reconstruction loss | 0.794207 |
+
+该结果低于 10 类随机猜测的 10%，说明当前简单 MLP 的 SSL 表示没有解决 DB2/DB3 到 DB4 的跨设备差异。它是当前简化流程的基线结果，不是论文完整模型的复现结果。详细的每折结果见 `results/ssl_db4_loso/summary.json`（该结果文件不提交 GitHub时，学长可按 README 命令重新运行生成）。
 
 ## 运行命令
 
