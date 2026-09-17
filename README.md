@@ -1,20 +1,17 @@
-# DB2+DB3 训练、DB4 测试：简单 MLP
+# DB2+DB3 自监督预训练、DB4 LOSO 测试：简单 MLP
 
-这是一个用来检查数据和实验流程的简单 MLP 基线，不是论文里的 AEMG、Transformer 或 VQ/MEM 模型。
+这是一个用于验证数据和实验思路的简单模型版本，不是论文中的 AEMG、Transformer 或 VQ/MEM 模型。
 
-## 主实验协议
+## 实验流程
 
-按照学长的建议，主实验是：
+1. **DB2+DB3 只做 SSL 预训练**：不使用 gesture label。训练脚本只读取 NCT 后的 `windows`、`time_positions` 和 `attention_masks`。
+2. 对每个样本随机 mask 50% 的有效 token，用 MLP encoder 加 decoder，根据被 mask token 的重建误差训练。
+3. DB2+DB3 的 subject 文件按 9:1 划分预训练 train/val，根据 val reconstruction loss 保存 `checkpoints/ssl_best_encoder.pt`。
+4. **DB4 做 10-fold LOSO**：每折留一个 subject 做 test；剩下 9 个中留一个做 validation，另外 8 个做训练。
+5. 加载并冻结 SSL encoder，只训练 DB4 的 linear classification head；根据 validation accuracy 保存每折最佳 head，再评估 held-out test subject。
+6. 最后报告 10 个 test subject 的 mean accuracy 和整体 accuracy。
 
-- 训练集：NinaPro DB2 全部 40 个 subject + DB3 全部 11 个 subject
-- 测试集：NinaPro DB4 全部 10 个 subject
-- DB2、DB3 不包含在 DB4 测试集中
-- 三个数据集都使用 Exercise 1 的 gesture 1-10
-- gesture 1-10 映射为分类标签 0-9
-- 12 个 EMG 通道，2 kHz 重采样到 200 Hz
-- 250 ms 窗口，50 ms 步长
-
-主流程是跨数据集测试：用 DB2+DB3 训练一个有监督 MLP，然后直接在 DB4 上测试。
+这里的“自监督”指预训练损失不使用 gesture label。原始数据预处理阶段仍需要使用 `restimulus`/`rerepetition` 定位动作片段；预训练真正开始后，label 不会被读取。
 
 ## 代码结构
 
@@ -24,28 +21,20 @@ reproduction_mlp/
 ├── mlp_baseline/
 │   ├── data.py
 │   ├── db4.py                  # 旧的 DB4 单独读取接口
-│   ├── loaders.py
-│   ├── model.py                # 简单 MLP
+│   ├── loaders.py              # 有标签 DB4 loader 和无标签 SSL loader
+│   ├── model.py                # MLP encoder、SSL autoencoder、旧接口
 │   ├── nct.py                  # 窗口化和能量阈值
 │   └── ninapro.py              # DB2/DB3/DB4 统一读取
 └── scripts/
     ├── prepare_db4.py          # 旧的 DB4-only 流程
-    ├── prepare_db23_to_db4.py  # 准备 DB2、DB3 训练和 DB4 测试数据
-    ├── run_mlp_db23_to_db4.py  # 主流程
+    ├── prepare_db23_to_db4.py  # 准备 DB2、DB3、DB4 的 NCT 数据
+    ├── run_mlp_db23_to_db4.py  # 当前主流程：SSL + DB4 LOSO
     └── run_mlp_loso.py         # 旧的 DB4 LOSO 对照流程
 ```
 
 ## 数据处理
 
-官方 zip 不能直接被训练脚本读取，需要先解压成 `.mat` 文件目录。DB2、DB3 的完整数据目录应类似：
-
-```text
-ninapro_db2_full/DB2_s1/S1_E1_A1.mat
-ninapro_db3_full/DB3_s1/S1_E1_A1.mat
-ninapro_db4/s1/S1_E1_A1.mat
-```
-
-然后运行：
+官方 zip 不能直接被训练脚本读取，需要先解压成 `.mat` 文件目录。然后运行：
 
 ```bash
 python scripts/prepare_db23_to_db4.py \
@@ -62,28 +51,36 @@ data/db23_to_db4/nct/train/db3/
 data/db23_to_db4/nct/test/db4/
 ```
 
-脚本会检查每个原始 subject 是否包含 10 个目标类别、12 个通道和有效 rest 信号。处理后的数据还会生成 `manifest.json`。
+当前配置使用 Exercise 1 的 gesture 1-10、12 个通道、200 Hz、250 ms 窗口和 50 ms 步长。原始数据和处理后的 `.npz` 不上传 GitHub。
 
-## 训练
+## 运行
+
+在仓库根目录运行：
 
 ```bash
-python scripts/run_mlp_db23_to_db4.py --epochs 100
+python scripts/run_mlp_db23_to_db4.py
 ```
 
-结果保存到：
+默认配置在 `config_mlp.yaml`：预训练和分类头各 100 个 epoch，每 2 个 epoch 打印一次 train/val 效果。也可以临时缩短测试：
+
+```bash
+python scripts/run_mlp_db23_to_db4.py \
+  --pretrain-epochs 2 \
+  --head-epochs 2 \
+  --print-every 1
+```
+
+输出文件：
 
 ```text
-results/db23_to_db4.json
+checkpoints/ssl_best_encoder.pt
+checkpoints/pretrain_split.json
+checkpoints/db4_loso/fold_XXX_best_head.pt
+results/ssl_db4_loso/summary.json
 ```
 
-结果中的 `db4_overall.accuracy` 是 DB2+DB3 训练后在 DB4 上的总体准确率。
+`summary.json` 中的 `mean_accuracy` 是 10 个 held-out DB4 subject accuracy 的平均值，`overall_accuracy` 是把 10 折测试样本合并后的总体准确率。
 
-## 当前结果
+## 旧的监督 MLP 结果
 
-当前完整实验使用 2887 个 DB2+DB3 训练样本，在 593 个 DB4 测试样本上得到约 9.11%。训练集准确率为 100%。
-
-这个结果说明简单 MLP 能记住训练数据，但跨数据集泛化很差。它不能直接与论文中使用 AEMG 预训练和目标数据微调后的 80% 左右结果比较。
-
-## 数据和 GitHub
-
-原始数据和处理后的 `.npz` 文件不上传 GitHub。GitHub 只保存代码、配置、README 和实验结果说明。
+仓库之前曾经有一个“DB2+DB3 有监督训练、DB4 直接测试”的基线，AutoDL 上约为 9.11%。它不是当前 SSL + LOSO 流程的结果，也不能和论文的完整 AEMG 预训练/适配结果直接比较。当前新流程跑完后，以 `results/ssl_db4_loso/summary.json` 为准。

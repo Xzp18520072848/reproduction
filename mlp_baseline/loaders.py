@@ -36,6 +36,25 @@ class NCTDataset(Dataset):
         }
 
 
+class UnlabeledNCTDataset(Dataset):
+    """SSL 预训练数据集：明确不返回或读取 gesture label。"""
+
+    def __init__(self, arrays: dict[str, np.ndarray], indices: np.ndarray) -> None:
+        self.arrays = arrays
+        self.indices = np.asarray(indices, dtype=np.int64)
+
+    def __len__(self) -> int:
+        return len(self.indices)
+
+    def __getitem__(self, item: int) -> dict[str, torch.Tensor]:
+        index = int(self.indices[item])
+        return {
+            "windows": torch.from_numpy(self.arrays["windows"][index]),
+            "time_positions": torch.from_numpy(self.arrays["time_positions"][index]),
+            "attention_mask": torch.from_numpy(self.arrays["attention_masks"][index]),
+        }
+
+
 def load_subject(path: Path, subject: int | None = None) -> dict[str, np.ndarray]:
     with np.load(path, allow_pickle=False) as data:
         labels = np.asarray(data["labels"], dtype=np.int64)
@@ -56,6 +75,26 @@ def load_arrays_from_paths(paths: list[Path]) -> dict[str, np.ndarray]:
     if not paths:
         raise ValueError("没有找到任何 NCT 文件。")
     arrays = [load_subject(path) for path in paths]
+    return {
+        key: np.concatenate([item[key] for item in arrays], axis=0)
+        for key in arrays[0]
+    }
+
+
+def load_unlabeled_subject(path: Path) -> dict[str, np.ndarray]:
+    """只读取 NCT token，不触碰 labels 字段。"""
+    with np.load(path, allow_pickle=False) as data:
+        return {
+            "windows": np.asarray(data["windows"], dtype=np.float32),
+            "time_positions": np.asarray(data["time_positions"], dtype=np.float32),
+            "attention_masks": np.asarray(data["attention_masks"], dtype=np.bool_),
+        }
+
+
+def load_unlabeled_arrays_from_paths(paths: list[Path]) -> dict[str, np.ndarray]:
+    if not paths:
+        raise ValueError("没有找到 SSL 预训练 NCT 文件。")
+    arrays = [load_unlabeled_subject(path) for path in paths]
     return {
         key: np.concatenate([item[key] for item in arrays], axis=0)
         for key in arrays[0]

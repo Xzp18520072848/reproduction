@@ -7,6 +7,18 @@ num_classes: 10
 data_root: data/db23_to_db4
 legacy_data_root: data/db4
 results_root: results
+checkpoint_root: checkpoints
+
+ssl:
+  mask_ratio: 0.5
+  pretrain_epochs: 100
+  pretrain_batch_size: 64
+  hidden_dim: 128
+  pretrain_learning_rate: 0.001
+  head_epochs: 100
+  head_batch_size: 64
+  head_learning_rate: 0.001
+  print_every: 2
 
 raw_roots:
   db2: /home/xuzhenpeng/work/aemg_ninapro/dataset/ninapro_db2_full

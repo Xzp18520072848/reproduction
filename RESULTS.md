@@ -1,46 +1,64 @@
 # 实验结果
 
-## DB2+DB3 训练，DB4 测试
+## 当前实验协议
 
-这是简单 MLP 基线，不是论文里的 AEMG 模型。
-
-### 数据规模
-
-- DB2：40 个 subject，处理后 2290 个样本
-- DB3：11 个 subject，处理后 597 个样本
-- 训练集总数：2887
-- DB4：10 个 subject，处理后 593 个测试样本
-- 类别数：10
-- 通道数：12
-- 输入窗口：12×50
-
-### 结果
-
-| 项目 | 数值 |
-|---|---:|
-| 训练集准确率 | 100.00% |
-| DB4 测试准确率（本地运行） | 8.94% |
-| DB4 测试准确率（AutoDL 运行） | 9.11% |
-| 随机猜测参考 | 10.00% |
-
-AutoDL 结果文件中的主协议是：
+当前主流程是：
 
 ```text
-DB2+DB3-train-DB4-test
+DB2+DB3-SSL-pretrain-DB4-LOSO-linear-probe
 ```
 
-### 结果说明
+- DB2+DB3：只用于自监督预训练，不使用 gesture label
+- 预训练：NCT token 随机 mask 50%，MLP encoder + decoder 重建被 mask token
+- 预训练划分：DB2+DB3 subject 文件按 9:1 划分 train/val
+- DB4：10 个 subject 做 LOSO
+- 每折 DB4：1 个 test、1 个 validation、8 个 train
+- 分类阶段：冻结 pretrained encoder，只训练 linear classification head
+- 模型选择：encoder 按 validation reconstruction loss，classification head 按 validation accuracy
 
-模型可以把 DB2、DB3 的训练样本记住，但在 DB4 上的准确率接近随机猜测，说明这个简单 MLP 的跨数据集泛化能力很差。
+## 数据规模
 
-这不是数据没有下载完整：51 个 DB2/DB3 压缩包均通过完整性检查，解压后得到 DB2 的 120 个 `.mat` 文件和 DB3 的 66 个 `.mat` 文件。读取检查确认了 12 通道、10 个目标类别和 6 次重复。
+当前 NCT 文件统计：
 
-DB2/DB3 和 DB4 使用的采集设备不同，原始信号量纲也不同。当前代码使用逐窗口归一化和每个 subject 的 rest 能量阈值，但普通 MLP 仍然无法解决跨设备差异。
+- DB2：40 个 subject，2290 个窗口样本
+- DB3：11 个 subject，597 个窗口样本
+- DB2+DB3：51 个 subject 文件，2887 个窗口样本
+- DB4：10 个 subject，593 个窗口样本
+- 类别数：10
+- 通道数：12
+- token 输入窗口：12×50
 
-因此，这个结果是简单 MLP 的基线结果，不能直接与论文中使用 AEMG 预训练和目标数据微调后的结果比较。
+预训练阶段虽然 NCT 文件内部保留了 label 字段用于后续检查和 DB4 分类，但 SSL loader 只读取 `windows`、`time_positions`、`attention_masks`，不会读取 label。
 
-### 运行命令
+## 结果文件
+
+完整新流程运行后，结果保存为：
+
+```text
+results/ssl_db4_loso/summary.json
+```
+
+其中：
+
+- `pretraining.best_val_loss`：预训练最佳验证重建损失
+- `fold_results[*].best_validation_accuracy`：每折最佳分类验证准确率
+- `fold_results[*].test.accuracy`：每个 held-out DB4 subject 的测试准确率
+- `mean_accuracy`：10 折测试准确率的平均值
+- `overall_accuracy`：10 折测试样本合并后的总体准确率
+
+当前还没有把新 SSL + LOSO 流程的最终 accuracy 写死在这里，避免把旧监督 MLP 的 9.11% 误认为新实验结果。以实际生成的 `summary.json` 为准。
+
+## 运行命令
 
 ```bash
-python scripts/run_mlp_db23_to_db4.py --epochs 100
+python scripts/run_mlp_db23_to_db4.py
+```
+
+默认每 2 个 epoch 打印一次训练和验证效果，方便判断是否继续训练。短跑验证命令：
+
+```bash
+python scripts/run_mlp_db23_to_db4.py \
+  --pretrain-epochs 2 \
+  --head-epochs 2 \
+  --print-every 1
 ```
